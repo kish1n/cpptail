@@ -7,6 +7,7 @@ using ll = long long;
 
 void bench_function();
 
+// TODO: remove this so consumers can provide their own function
 void bench_function() {
   // Function to benchmark
   volatile int x = 0;
