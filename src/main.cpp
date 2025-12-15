@@ -5,6 +5,16 @@ import std;
 
 using ll = long long;
 
+void bench_function();
+
+void bench_function() {
+  // Function to benchmark
+  volatile int x = 0;
+  for (int i = 0; i < 1000; ++i) {
+    x += i;
+  }
+}
+
 // pin thread to a CPU core
 void pin_thread_to_core(int core_id) {
   cpu_set_t cpuset;
@@ -12,6 +22,12 @@ void pin_thread_to_core(int core_id) {
   CPU_SET(core_id, &cpuset);
   pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
   std::print("Thread pinned to core {}\n", core_id);
+  if (sched_getcpu() != core_id) {
+    std::print("Error: Thread not running on the expected core. expected {} != "
+               "actual {}\n",
+               core_id, sched_getcpu());
+    std::exit(1);
+  }
 }
 
 // Get the p-th percentile data from a sorted vector<ll>
@@ -28,15 +44,15 @@ ll percentile(const std::vector<ll> &times_ns, double p) {
 
 // flush 256MB of cache to simulate cold caches
 void flush_caches() {
-  constexpr size_t flush_size = 256 * 1024 * 1024; // 256 MB
+  constexpr size_t flush_size = 1 * 1024 * 1024; // 1 MB
   static std::vector<int> flush(flush_size, 1);
   volatile int sink = 0;
   for (auto &x : flush)
     sink += x;
 }
 
-int main() {
-  const int iterations = 1000000;
+int main(int argc, char **argv) {
+  int iterations = 1000000;
   const int warmup = 10000;
   bool cold_path = false; // TODO: set based on args
   std::vector<ll> timings;
@@ -44,25 +60,34 @@ int main() {
 
   std::print("Running on core: {}\n", sched_getcpu());
 
-  pin_thread_to_core(0);
+  bool pinnedCore = false;
+
+  for (int i = 0; i < argc; i++) {
+    if (std::string(argv[i]) == "--cold") {
+      cold_path = true;
+    } else if (std::string(argv[i]) == "--core" && i + 1 < argc) {
+      int core_id = std::stoi(argv[i + 1]);
+      pin_thread_to_core(core_id);
+      pinnedCore = true;
+    }
+  }
+
+  if (!pinnedCore)
+    pin_thread_to_core(0);
 
   for (int i = 0; i < warmup; ++i) {
-    // TODO: make this use a function
-    volatile int x = i;
-    (void)x;
+    bench_function();
   }
 
   for (int i = 0; i < iterations; ++i) {
     if (cold_path) {
       flush_caches();
+      iterations = std::min(iterations, 100);
     }
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    // --- HOT-PATH CODE TO BENCHMARK ---
-    volatile int x = i;
-    (void)x;
-    // ----------------------------------
+    bench_function();
 
     auto end = std::chrono::high_resolution_clock::now();
     ll ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
