@@ -45,7 +45,8 @@ ll percentile(const std::vector<ll> &times_ns, double p) {
 
 // flush 256MB of cache to simulate cold caches
 void flush_caches() {
-  constexpr size_t flush_size = 1 * 1024 * 1024; // 1 MB
+  constexpr size_t flush_size =
+      1 * 1024 * 1024; // 1 MB, maybe too low, but this is costly
   static std::vector<int> flush(flush_size, 1);
   volatile int sink = 0;
   for (auto &x : flush)
@@ -55,7 +56,7 @@ void flush_caches() {
 int main(int argc, char **argv) {
   int iterations = 1000000;
   const int warmup = 10000;
-  bool cold_path = false; // TODO: set based on args
+  bool cold_path = false;
   std::vector<ll> timings;
   timings.reserve(iterations);
 
