@@ -3,7 +3,7 @@
 echo "Core | Mean (ns) | p50 (ns) | p99 (ns) | p99.9 (ns)"
 echo "-----|-----------|----------|----------|------------"
 
-for core in (seq 0 31)
+for core in (seq 0 (math (nproc) - 1))
     build/cpptail --core $core | while read -l line
         if string match -q "*Mean time:*" $line
             set mean (echo $line | awk '{print $3}')

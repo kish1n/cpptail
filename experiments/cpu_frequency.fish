@@ -1,9 +1,15 @@
 #!/usr/bin/env fish
 
-echo "Core | Freq (GHz) | IRQs |"
-echo "-----|------------|------|"
+if test (id -u) -ne 0
+    echo "This script requires root access for perf IRQ tracing."
+    echo "Please run with sudo: sudo "(status filename)
+    exit 1
+end
 
-for core in (seq 0 31)
+echo "Core |Freq (GHz)| IRQs |"
+echo "-----|----------|------|"
+
+for core in (seq 0 (math (nproc) - 1))
     set temp_file (mktemp)
     sudo perf stat -e cycles:u -e irq:irq_handler_entry -e irq:softirq_entry \
         build/cpptail --core $core 2>$temp_file >/dev/null
@@ -24,5 +30,5 @@ for core in (seq 0 31)
     
     rm $temp_file
     
-    printf "%4d | %10.3f | %4d |\n" $core $ghz $total_irq
+    printf "%4d | %8.2f | %4d |\n" $core $ghz $total_irq
 end
